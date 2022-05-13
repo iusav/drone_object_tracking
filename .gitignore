@@ -1,0 +1,8 @@
+OLD_*
+core/OLD_*
+
+*/__pycache__/
+
+checkpoints/
+data/*.weights
+outputs/*
