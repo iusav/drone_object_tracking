@@ -1,8 +1,6 @@
-OLD_*
-core/OLD_*
-
 */__pycache__/
-
-checkpoints/
+checkpoints/*
 data/*.weights
+model_data/mars-small128.pb
 outputs/*
+outputs/velocity_statistic/*
