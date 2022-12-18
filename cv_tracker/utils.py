@@ -27,7 +27,7 @@ def yolo_checker(obj_count, bboxes, names, scores, output_frame):
 
             
 def yolo_cluster_finder(bboxes, edge_score, output_frame):
-    
+     
     # Find clusters, where yolo bboxes are next to each other. 
     # Cluster consisting of two values means that two yolo bboxes belong to the same object 
    
@@ -70,11 +70,11 @@ def yolo_cluster_finder(bboxes, edge_score, output_frame):
         if len(cluster) > 1:
             for cluster_id in cluster:
                 bbox = bboxes[cluster_id]
-
+                
                 x = int(bbox[0])
                 y = int(bbox[1])
                 w = int(bbox[2])
-                h = int(bbox[3]) 
+                h = int(bbox[3])   
     
     return cluster_list 
 
@@ -120,7 +120,7 @@ def yolo_updater(obj_count, bboxes, names, scores, cluster_list, output_frame):
     
     bboxes = np.array(temp_bboxes)
     names = np.array(temp_names)
-    scores = np.array(temp_scores)   
+    scores = np.array(temp_scores)    
     
     return obj_count, bboxes, names, scores, center_pointsYOLOsum
 
@@ -148,10 +148,10 @@ def get_YOLObbox(output_frame, new_data_dict, edge_score, count):
 
     # Because yolo often falsely predicts multiple objects, 
     # when in reality there is only one object and make an average yolo bbox
-
-    cluster_list = yolo_cluster_finder(bboxes, edge_score, output_frame)
-    obj_count, bboxes, names, scores, center_pointsYOLO = yolo_updater(obj_count, bboxes, names, scores, cluster_list, output_frame)    
     
+    cluster_list = yolo_cluster_finder(bboxes, edge_score, output_frame)
+    obj_count, bboxes, names, scores, center_pointsYOLO = yolo_updater(obj_count, bboxes, names, scores, cluster_list, output_frame)
+ 
     # Write data of bbox YOLO to a new dict 'summary'
     new_data_dict['summary'][str(count)]={'tracked_objs':obj_count}
     # tracked objs
@@ -174,7 +174,7 @@ def correct_cvTracker_updater(bboxesTRACKER, correct_cvTracker, count):
     
     if correct_cvTracker['update_status'] is None:
         correct_cvTracker['prev_status']    = current_cvTracker_list
-        correct_cvTracker['current_status'] = current_cvTracker_list      
+        correct_cvTracker['current_status'] = current_cvTracker_list   
 
     else:
         correct_cvTracker['prev_status'] = correct_cvTracker['update_status']
@@ -185,7 +185,7 @@ def correct_cvTracker_updater(bboxesTRACKER, correct_cvTracker, count):
     update_cvTracker_list  =                  []
 
     for tracker_id in range(len(current_cvTracker_list)):
-    
+
         if tracker_id not in range(len(prev_cvTracker_list)):
             update_cvTracker_list.append(current_cvTracker_list[tracker_id])
         else:
@@ -208,7 +208,7 @@ def get_TRACKERbbox(bboxesTRACKER, output_frame, new_data_dict, correct_cvTracke
         cx = int((x + x + w) / 2)
         cy = int((y + y + h) / 2)
         center_pointsTRACKER.append([cx, cy])
-
+ 
     tracker_obj_count = len(bboxesTRACKER)
 
     ##### Update "cv2_tracker" block #####
@@ -221,15 +221,15 @@ def get_TRACKERbbox(bboxesTRACKER, output_frame, new_data_dict, correct_cvTracke
     ##### Update "summary" block #####
     # Add to summary only those tracker bboxes that are not yet on the list 
     center_pointsYOLOsum = new_data_dict["summary"][str(count)]['center_points']
-    
-    # List of correct bboxes
+
+    # List of correct bboxes 
     correct_cvTracker_list = correct_cvTracker_updater(bboxesTRACKER, correct_cvTracker, count)
 
     for tr_id, tr_status in enumerate(correct_cvTracker_list):
         if tr_status == False:
             pass
-            
-    
+
+
     # Check if there is a yolo bbox and a tracker bbox that belong to the same object at the same time,
     # If so, only the bbox from yolo is taken into account
     
@@ -244,9 +244,9 @@ def get_TRACKERbbox(bboxesTRACKER, output_frame, new_data_dict, correct_cvTracke
         # then calculate the Mittelpunkt and add this tracker bbox to the summary, otherwise skip
         
         if any(dist_to_yolo<15) or not(correct_cvTracker_list[tracker_count]) or not(any(bboxTRACKER)): 
-            continue   
-
-        else:            
+            continue
+    
+        else:
             prev_pointsSUM = new_data_dict['summary'][str(count-1)]['center_points']  
 
             # Calculate the distance from the selected tracker bbox to each bbox on the previous frame from Summary
@@ -262,7 +262,7 @@ def get_TRACKERbbox(bboxesTRACKER, output_frame, new_data_dict, correct_cvTracke
             cx = int((bboxTRACKER[0]*2 + bboxTRACKER[2]) / 2)
             cy = int((bboxTRACKER[1]*2 + bboxTRACKER[3]) / 2)
             pt = [cx,cy]
-            
+                       
             new_data_dict['summary'][str(count)]['center_points'].append(pt)
             new_data_dict["summary"][str(count)]["bboxes"].append(bboxTRACKER)
 
@@ -274,8 +274,8 @@ def get_TRACKERbbox(bboxesTRACKER, output_frame, new_data_dict, correct_cvTracke
 
     
     summary_obj_count = len(new_data_dict["summary"][str(count)]["bboxes"])
-    new_data_dict["summary"][str(count)]['tracked_objs']  = summary_obj_count
-     
+    new_data_dict["summary"][str(count)]['tracked_objs']  = summary_obj_count   
+
     return tracker_obj_count, bboxesTRACKER, center_pointsTRACKER, new_data_dict
 
 
