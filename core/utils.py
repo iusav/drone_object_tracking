@@ -1,9 +1,23 @@
 import cv2
+import json
 import random
 import colorsys
 import numpy as np
 import tensorflow as tf
 from core.config import cfg
+
+def data_reader(path):
+
+    # Read summary data from the json file
+    with open(path) as json_file:
+        json_data = json.load(json_file)
+
+    return json_data
+
+def data_writer(output_data, path):
+    # Write summary data to a json file
+    with open(path, "w", newline="") as json_file:
+        json.dump(output_data, json_file)
 
 def load_freeze_layer(model='yolov4', tiny=False):
     if tiny:
