@@ -37,7 +37,6 @@ def main(
     model: str='yolov4',
     input_video_path: str=None,
     output_video_path: str=None,
-    output: str=None,
     output_format: str='XVID',
     iou: float=0.45,
     score: float=0.5,
@@ -71,13 +70,13 @@ def main(
     out = None
 
     # Get video ready to save locally if flag is set
-    if output:
+    if output_video_path:
         # By default VideoCapture returns float instead of int
         width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = int(vid.get(cv2.CAP_PROP_FPS))
         codec = cv2.VideoWriter_fourcc(*output_format)
-        out = cv2.VideoWriter(output, codec, fps, (width, height))
+        out = cv2.VideoWriter(output_video_path, codec, fps, (width, height))
 
     frame_num = 0
 
@@ -189,7 +188,7 @@ def main(
             cv2.imshow("Output Video", result)
 
         # If output flag is set, save video file
-        if output:
+        if output_video_path:
             out.write(result)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
         
