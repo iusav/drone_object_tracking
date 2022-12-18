@@ -2,6 +2,7 @@ import os
 # comment out below line to enable tensorflow logging outputs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import time
+import json
 import tensorflow as tf
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
 if len(physical_devices) > 0:
@@ -9,13 +10,13 @@ if len(physical_devices) > 0:
 from absl import app, flags, logging
 from absl.flags import FLAGS
 import core.utils as utils
+from core.utils import *
 from core.yolov4 import filter_boxes
 from tensorflow.python.saved_model import tag_constants
 from core.config import cfg
 from PIL import Image
 import cv2
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 from tensorflow.compat.v1 import ConfigProto
 from tensorflow.compat.v1 import InteractiveSession
@@ -24,22 +25,7 @@ from deep_sort import preprocessing, nn_matching
 from deep_sort.detection import Detection
 from deep_sort.tracker import Tracker
 from tools import generate_detections as gdet
-from core.utils import get_anchors, read_class_names
 
-# flags.DEFINE_string('framework', 'tf', '(tf, tflite, trt')
-# flags.DEFINE_string('weights', './checkpoints/yolov4-416',
-#                     'path to weights file')
-# flags.DEFINE_integer('size', 416, 'resize images to')
-# flags.DEFINE_boolean('tiny', False, 'yolo or yolo-tiny')
-# flags.DEFINE_string('model', 'yolov4', 'yolov3 or yolov4')
-# flags.DEFINE_string('video', './data/video/test.mp4', 'path to input video or set to 0 for webcam')
-# flags.DEFINE_string('output', None, 'path to output video')
-# flags.DEFINE_string('output_format', 'XVID', 'codec used in VideoWriter when saving video to file')
-# flags.DEFINE_float('iou', 0.45, 'iou threshold')
-# flags.DEFINE_float('score', 0.50, 'score threshold')
-# flags.DEFINE_boolean('dont_show', False, 'dont show video output')
-# flags.DEFINE_boolean('info', False, 'show detailed info of tracked objects')
-# flags.DEFINE_boolean('count', False, 'count objects being tracked on screen')
 
 def main(
     framework: str='tf',
@@ -47,30 +33,30 @@ def main(
     size: int=416,
     tiny: bool=False,
     model: str='yolov4',
-    video: str='./data/video/test.mp4',
-    output: str=None,
+    input_video_path: str=None,
+    output_video_path: str=None,
     output_format: str='XVID',
     iou: float=0.45,
     score: float=0.5,
     dont_show: bool=False,
     info: bool=False,
     count: bool=False,
-    output_csv_path: str=None
+    output_json_path: str=None
 ):
     # Definition of the parameters
     max_cosine_distance = 0.4
     nn_budget = None
     nms_max_overlap = 1.0
     
-    # initialize deep sort
+    # Initialize deep sort
     model_filename = 'model_data/mars-small128.pb'
     encoder = gdet.create_box_encoder(model_filename, batch_size=1)
-    # calculate cosine distance metric
+    # Calculate cosine distance metric
     metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
-    # initialize tracker
+    # Initialize tracker
     tracker = Tracker(metric)
 
-    # load configuration for object detector
+    # Load configuration for object detector
     config = ConfigProto()
     config.gpu_options.allow_growth = True
     session = InteractiveSession(config=config)
@@ -80,9 +66,8 @@ def main(
     NUM_CLASS = len(read_class_names(cfg.YOLO.CLASSES))
     STRIDES = np.array(cfg.YOLO.STRIDES)
     input_size = size
-    video_path = video
 
-    # load tflite model if flag is set
+    # Load tflite model if flag is set
     if framework == 'tflite':
         interpreter = tf.lite.Interpreter(model_path=weights)
         interpreter.allocate_tensors()
@@ -90,31 +75,35 @@ def main(
         output_details = interpreter.get_output_details()
         print(input_details)
         print(output_details)
-    # otherwise load standard tensorflow saved model
+    # Otherwise load standard tensorflow saved model
     else:
         saved_model_loaded = tf.saved_model.load(weights, tags=[tag_constants.SERVING])
         infer = saved_model_loaded.signatures['serving_default']
 
-    # begin video capture
+    # Begin video capture
     try:
-        vid = cv2.VideoCapture(int(video_path))
+        vid = cv2.VideoCapture(int(input_video_path))
     except:
-        vid = cv2.VideoCapture(video_path)
+        vid = cv2.VideoCapture(input_video_path)
 
     out = None
 
-    # get video ready to save locally if flag is set
-    if output:
-        # by default VideoCapture returns float instead of int
+    # Get video ready to save locally if flag is set
+    if output_video_path:
+        # By default VideoCapture returns float instead of int
         width = int(vid.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = int(vid.get(cv2.CAP_PROP_FPS))
         codec = cv2.VideoWriter_fourcc(*output_format)
-        out = cv2.VideoWriter(output, codec, fps, (width, height))
+        out = cv2.VideoWriter(output_video_path, codec, fps, (width, height))
 
     frame_num = 0
-    # while video is running
-    if output_csv_path: output_data_array = []
+
+    # Initialize output data dict
+    output_data_dict = {
+    }
+
+    # While video is running
     while True:
         return_value, frame = vid.read()
         if return_value:
@@ -131,12 +120,12 @@ def main(
         image_data = image_data[np.newaxis, ...].astype(np.float32)
         start_time = time.time()
 
-        # run detections on tflite if flag is set
+        # Run detections on tflite if flag is set
         if framework == 'tflite':
             interpreter.set_tensor(input_details[0]['index'], image_data)
             interpreter.invoke()
             pred = [interpreter.get_tensor(output_details[i]['index']) for i in range(len(output_details))]
-            # run detections using yolov3 if flag is set
+            # Run detections using yolov3 if flag is set
             if model == 'yolov3' and tiny == True:
                 boxes, pred_conf = filter_boxes(pred[1], pred[0], score_threshold=0.25,
                                                 input_shape=tf.constant([input_size, input_size]))
@@ -160,7 +149,7 @@ def main(
             score_threshold=score
         )
 
-        # convert data to numpy arrays and slice out unused elements
+        # Convert data to numpy arrays and slice out unused elements
         num_objects = valid_detections.numpy()[0]
         bboxes = boxes.numpy()[0]
         bboxes = bboxes[0:int(num_objects)]
@@ -169,23 +158,20 @@ def main(
         classes = classes.numpy()[0]
         classes = classes[0:int(num_objects)]
 
-        # format bounding boxes from normalized ymin, xmin, ymax, xmax ---> xmin, ymin, width, height
+        # Format bounding boxes from normalized ymin, xmin, ymax, xmax ---> xmin, ymin, width, height
         original_h, original_w, _ = frame.shape
         bboxes = utils.format_boxes(bboxes, original_h, original_w)
 
-        # store all predictions in one parameter for simplicity when calling functions
+        # Store all predictions in one parameter for simplicity when calling functions
         pred_bbox = [bboxes, scores, classes, num_objects]
 
-        # read in all class names from config
+        # Read in all class names from config
         class_names = utils.read_class_names(cfg.YOLO.CLASSES)
 
-        # by default allow all classes in .names file
+        # By default allow all classes in .names file
         allowed_classes = list(class_names.values())
-        
-        # custom allowed classes (uncomment line below to customize tracker for only people)
-        #allowed_classes = ['person']
 
-        # loop through objects and use class index to get class name, allow only classes in allowed_classes list
+        # Loop through objects and use class index to get class name, allow only classes in allowed_classes list
         names = []
         deleted_indx = []
         for i in range(num_objects):
@@ -198,75 +184,101 @@ def main(
         names = np.array(names)
         count = len(names)
         if count:
-            cv2.putText(frame, "Objects being tracked: {}".format(count), (5, 35), cv2.FONT_HERSHEY_COMPLEX_SMALL, 2, (0, 255, 0), 2)
-            print("Objects being tracked: {}".format(count))
-        # delete detections that are not in allowed_classes
+            cv2.putText(frame, 'Objects being tracked: {}'.format(count), (5, 35), cv2.FONT_HERSHEY_COMPLEX_SMALL, 2, (0, 255, 0), 2)
+            print('Objects being tracked: {}'.format(count))
+        # Delete detections that are not in allowed_classes
         bboxes = np.delete(bboxes, deleted_indx, axis=0)
         scores = np.delete(scores, deleted_indx, axis=0)
 
-        # encode yolo detections and feed to tracker
-        features = encoder(frame, bboxes)
+        # Encode yolo detections and feed to tracker
+        features   = encoder(frame, bboxes)
         detections = [Detection(bbox, score, class_name, feature) for bbox, score, class_name, feature in zip(bboxes, scores, names, features)]
 
-        #initialize color map
-        cmap = plt.get_cmap('tab20b')
+        # Initialize color map
+        cmap   = plt.get_cmap('tab20b')
         colors = [cmap(i)[:3] for i in np.linspace(0, 1, 20)]
 
-        # run non-maxima supression
-        boxs = np.array([d.tlwh for d in detections])
-        scores = np.array([d.confidence for d in detections])
-        classes = np.array([d.class_name for d in detections])
-        indices = preprocessing.non_max_suppression(boxs, classes, nms_max_overlap, scores)
+        # Run non-maxima supression
+        boxs       = np.array([d.tlwh for d in detections])
+        scores     = np.array([d.confidence for d in detections])
+        classes    = np.array([d.class_name for d in detections])
+        indices    = preprocessing.non_max_suppression(boxs, classes, nms_max_overlap, scores)
         detections = [detections[i] for i in indices]       
 
         # Call the tracker
         tracker.predict()
         tracker.update(detections)
 
-        # update tracks
+        json_frame_data = {
+            'bboxes' : [],    # [x, y, w, y]
+            'classes': [],
+            'idx'    : []
+        }
+
+
+        # Update tracks
         for track in tracker.tracks:
             if not track.is_confirmed() or track.time_since_update > 1:
                 continue 
             bbox = track.to_tlbr()
             class_name = track.get_class()
-            
-        # draw bbox on screen
+
+            # bbox coordinate
+            x1, y1, x2, y2, = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
+             
+            if x1 < 0: x1 = 0
+            if y1 < 0: y1 = 0
+        
+            if x2 > frame_size[1]: x2 = frame_size[1]
+            if y2 > frame_size[0]: y2 = frame_size[0]
+
+            w = int(x2 - x1)
+            h = int(y2 - y1)
+
+            obj_bbox = [x1,y1,w,h]
+
+            # Append obj data to json data
+            json_frame_data['bboxes'].append(obj_bbox)
+            json_frame_data['classes'].append(class_name)
+            json_frame_data['idx'].append(track.track_id)
+
+            # Draw bbox on screen
             color = colors[int(track.track_id) % len(colors)]
             color = [i * 255 for i in color]
             cv2.rectangle(frame, (int(bbox[0]), int(bbox[1])), (int(bbox[2]), int(bbox[3])), color, 2)
             cv2.rectangle(frame, (int(bbox[0]), int(bbox[1]-30)), (int(bbox[0])+(len(class_name)+len(str(track.track_id)))*17, int(bbox[1])), color, -1)
             cv2.putText(frame, class_name + "-" + str(track.track_id),(int(bbox[0]), int(bbox[1]-10)),0, 0.75, (255,255,255),2)
 
-        # if enable info flag then print details about each track
+            # If enable info flag then print details about each track
             if info:
-                print("Tracker ID: {}, Class: {},  BBox Coords (xmin, ymin, xmax, ymax): {}".format(str(track.track_id), class_name, (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))))
-
-            # write bbobxes to np.array for csv-export later
-            if output_csv_path: 
-                output_data_array += [[frame_num, track.track_id, class_name, int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])]]
+                print('Tracker ID: {}, Class: {},  BBox Coords (xmin, ymin, xmax, ymax): {}'.format(str(track.track_id), class_name, (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3]))))
         
-        # calculate frames per second of running detections
+        # Calculate frames per second of running detections
         fps = 1.0 / (time.time() - start_time)
-        print("FPS: %.2f" % fps)
+        print('FPS: %.2f' % fps)
         result = np.asarray(frame)
         result = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+        output_data_dict[frame_num] = json_frame_data
         
         if not dont_show:
-            cv2.imshow("Output Video", result)
+            cv2.namedWindow('Output Video', cv2.WINDOW_NORMAL)
+            cv2.imshow('Output Video', result)
         
-        # if output flag is set, save video file
-        if output:
+        # If output flag is set, save video file
+        if output_video_path:
             out.write(result)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
     cv2.destroyAllWindows()
 
-    if output_csv_path: 
-        df_output = pd.DataFrame(data=output_data_array, columns=['frame_num', 'tracker_id', 'class_name', 'xmin', 'ymin', 'xmax', 'ymax'])
-        df_output.to_csv(output_csv_path)
+    # Write JSON data     
+    data_writer(output_data_dict, output_json_path)
 
 
 if __name__ == '__main__':
     
-    output_csv_path=r"outputs\output_summary.csv"
-    video = r"inputs\input.mp4"
-    main(output_csv_path=output_csv_path, video=video, output=r"outputs\output.avi")
+    input_video_path = r'inputs\input.mp4'
+    output_json_path = r'outputs\tracking.json'
+    output_video_path = r'outputs\y_deepsort_tracking.avi'
+
+    main(output_json_path=output_json_path, input_video_path=input_video_path, output_video_path=output_video_path)
