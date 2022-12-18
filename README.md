@@ -9,7 +9,7 @@ Using the location of the objects and the FPS of the video, find the speed of ea
 ## Demo of Object Tracker on Vehicles using Drones
 <p align="center"><img src="data/helpers/drone_demo.gif"\></p>
 
-<p align="center"><img src="data/helpers/obj_map.jpg"\></p>
+<p align="center"><img src="data/helpers/obj_map.JPG"\></p>
 
 <p align="center"><img src="data/helpers/object_velocity.jpg"\></p>
 
