@@ -1,6 +1,6 @@
 # drone_object_tracking
 
-Object tracking implemented with YOLOv4, DeepSort and TensorFlow. YOLOv4 is a state of the art algorithm that uses deep convolutional neural networks to perform object detections. We can take the output of YOLOv4 feed these object detections into Deep SORT (Simple Online and Realtime Tracking with a Deep Association Metric) in order to create a highly accurate object tracker.
+Object tracking implemented with YOLOv4, DeepSort, OpenCV Tracking and TensorFlow. YOLOv4 is a state of the art algorithm that uses deep convolutional neural networks to perform object detections. To improve results of YOLOv4, algorithms from OpenCV are used for tracking. We can take the output of YOLOv4 and OpenCV Tracking feed these object detections into Deep SORT (Simple Online and Realtime Tracking with a Deep Association Metric) in order to create a highly accurate object tracker.
 
 We can transform the image coordinates in world koordinate. With this we can represent on the map the location of objects and their IDs.
 
@@ -35,10 +35,22 @@ Copy and paste yolov4-416.zip from your downloads folder into the 'checkpoints/'
 
 ### Running 
 
-Run yolov4 deep sort object tracker on video
+Run yolov4 object detection on video
 
 ```sh
-$ python object_tracker.py
+$ python object_detector.py
+```
+
+Improve results of YOLOv4 with tracking of OpenCV
+
+```sh
+$ python cv_preprocessor.py
+```
+
+Run Deep SORT object tracker on video
+
+```sh
+$ deepsort_tracker.py
 ```
 
 Transform the image coordinates in world koordinate.
