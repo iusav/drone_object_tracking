@@ -1,66 +1,77 @@
 # drone_object_tracking
 
-Object tracking implemented with YOLOv4, DeepSort, and TensorFlow. YOLOv4 is a state of the art algorithm that uses deep convolutional neural networks to perform object detections. We can take the output of YOLOv4 feed these object detections into Deep SORT (Simple Online and Realtime Tracking with a Deep Association Metric) in order to create a highly accurate object tracker.
+Object tracking implemented with YOLOv4, DeepSort, OpenCV Tracking and TensorFlow. YOLOv4 is a state of the art algorithm that uses deep convolutional neural networks to perform object detections. To improve results of YOLOv4, algorithms from OpenCV are used for tracking. We can take the output of YOLOv4 and OpenCV Tracking feed these object detections into Deep SORT (Simple Online and Realtime Tracking with a Deep Association Metric) in order to create a highly accurate object tracker.
+
+We can transform the image coordinates in world koordinate. With this we can represent on the map the location of objects and their IDs.
+
+Using the location of the objects and the FPS of the video, find the speed of each object (vehicle)
 
 ## Demo of Object Tracker on Vehicles using Drones
 <p align="center"><img src="data/helpers/drone_demo.gif"\></p>
 
+<p align="center"><img src="data/helpers/obj_map.jpg"\></p>
+
+<p align="center"><img src="data/helpers/object_velocity.jpg"\></p>
+
 ## Getting Started
-To get started, install the proper dependencies either via Anaconda or Pip. I recommend Anaconda route for people using a GPU as it configures CUDA toolkit version for you.
-
-### Conda (Recommended)
-
-```bash
-# Tensorflow CPU
-conda env create -f conda-cpu.yml
-conda activate yolov4-cpu
-
-# Tensorflow GPU
-conda env create -f conda-gpu.yml
-conda activate yolov4-gpu
-```
 
 ### Pip
-(TensorFlow 2 packages require a pip version >19.0.)
-```bash
-# TensorFlow CPU
-pip install -r requirements.txt
-
-# TensorFlow GPU
-pip install -r requirements-gpu.txt
+Install packages
+```sh
+$ pip install -r requirements.txt
 ```
-### Nvidia Driver (For GPU, if you are not using Conda Environment and haven't set up CUDA yet)
-Make sure to use CUDA Toolkit version 10.1 as it is the proper version for the TensorFlow version used in this repository.
-https://developer.nvidia.com/cuda-10.1-download-archive-update2
 
-## Downloading Official YOLOv4 Pre-trained Weights
+### Downloading Official YOLOv4 Pre-trained Weights
 Our object tracker uses YOLOv4 to make the object detections, which deep sort then uses to track. There exists an pre-trained YOLOv4 object detector model of VisDrone Dataset that is able to detect 11 classes. For easy demo purposes we will use the pre-trained weights for our tracker.
-Download pre-trained visdrone_yolo_v4_original.weights file: https://drive.google.com/file/d/1EChtoTs4_v7nbTaGYgdjdW0wb-pBIixg/view?usp=sharing 
 
-Copy and paste visdrone_yolo_v4_original.weights from your downloads folder into the 'data' folder of this repository.
+1. Download pre-trained mars-small128.pb file:
+https://drive.google.com/file/d/1IEIPpf4QJ6wn1L6wR0PaAUJuU7QyMxU4/view?usp=share_link 
+Copy and paste mars-small128.pb from your downloads folder into the 'model_data/' folder of this repository.
 
-## Running the Tracker with YOLOv4
-To implement the object tracking using YOLOv4, first we convert the .weights into the corresponding TensorFlow model which will be saved to a checkpoints folder. Then all we need to do is run the object_tracker.py script to run our object tracker with YOLOv4, DeepSort and TensorFlow.
+2. Download yolov4-416.zip file:
+https://drive.google.com/file/d/1200u6Y20Y3O2KbiXyvj3fDSG5A9Ua0HR/view?usp=share_link
+Copy and paste yolov4-416.zip from your downloads folder into the 'checkpoints/' folder of this repository.
 
-```bash
-# Convert darknet weights to tensorflow model
-python save_model.py 
 
-# Run yolov4 deep sort object tracker on video
-python object_tracker.py 
+### Running 
+
+Run yolov4 object detection on video
+
+```sh
+$ python object_detector.py
 ```
 
-The output flag allows you to save the resulting video of the object tracker running so that you can view it again later. Video will be saved to the path that you set. (outputs folder is where it will be if you run the above command!)
+Improve results of YOLOv4 with tracking of OpenCV
 
-## Input Video (Video for processing)
-Put the video for processing in the folder 'inputs'. The video must have the following name and format input.mp4. If the video should have a different name or/and format, adapt the code in the file object_tracker.py.
+```sh
+$ python cv_preprocessor.py
+```
 
-## Output Video (Resulting Video)
-After the processing is finished, the processed output.avi video is saved in the folder 'outputs'. 
-You can also adapt the name, format and/or saving path in the file object_tracker.py.
+Run Deep SORT object tracker on video
 
-## Summary file
-Summary information was saved in output_summary.csv file in the folder 'outputs'.
+```sh
+$ deepsort_tracker.py
+```
+
+Transform the image coordinates in world koordinate.
+Mark any four points on the image and then write their corresponding coordinates on the world map
+
+```sh
+$ python coordinate_transform.py
+```
+
+Represent on the map the location of objects and their IDs
+
+```sh
+$ python map_plot.py
+```
+
+Calculate the velocity for each vehicle and save it in the outputs folder
+
+```sh
+$ python object_velocity.py
+```
+
 
 ### References  
 

@@ -7,3 +7,4 @@ easydict==1.9
 matplotlib==3.5.2
 pillow==9.1.0
 pandas==1.4.2
+plotly==5.10.0
